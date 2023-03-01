@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script>
+        let sonuc = {};
+
+        async function getPrayerTimes() {
+            const url = "https://ezanvakti.herokuapp.com/vakitler?ilce=9163";        
+            let response = await fetch(url);
+            if (response.ok) {
+                let json = await response.json();
+
+                let currentDate = new Date();
+                let formattedDate = currentDate.toLocaleDateString('en-GB');
+                formattedDate = (formattedDate.split("/")[0] + "." + formattedDate.split("/")[1] + "." + formattedDate.split("/")[2]);
+                // DD.MM.YYY
+                
+                let par;
+                for (let i = 0; i < json.length; i++) {
+                    if (json[i].MiladiTarihKisa === formattedDate) {
+                        par = i;
+                        break;
+                    }                    
+                }
+
+                sonuc = {
+                    tarih: json[par].MiladiTarihUzun,
+                    hicri: json[par].HicriTarihUzun,
+                    imsak: json[par].Imsak,
+                    imsakyarin: json[par+1].Imsak,
+                    ogle : json[par].Ogle,
+                    ikindi : json[par].Ikindi,
+                    aksam : json[par].Aksam,
+                    yatsi: json[par].Yatsi
+                };
+            } else {
+                alert("HTTP-Error: " + response.status);
+            }
+        }
+        getPrayerTimes();
+
+        function calculate() {        
+            let Now = new Date().toLocaleTimeString();  
+            if (Now=="00:00:00") {
+                getPrayerTimes();
+            }         
+
+            let CurrentTime = new Date().setHours(Now.split(":")[0], Now.split(":")[1], Now.split(":")[2]);            
+            let PrayerTimeArray = [sonuc.imsak, sonuc.ogle, sonuc.ikindi, sonuc.aksam, sonuc.yatsi];
+            let TargetTime = new Date().setHours(0, 0, 0);
+
+            let distance;
+            
+            let yatsiTime = new Date().setHours(sonuc.yatsi.split(":")[0], sonuc.yatsi.split(":")[1], "00");
+            if (CurrentTime > yatsiTime) {
+                TargetTime = new Date().setHours(sonuc.imsakyarin.split(":")[0], sonuc.imsakyarin.split(":")[1], "00");
+                
+                let NowArr = Now.split(":");
+                let NowSecs = (+NowArr[0] * 3600) + (+NowArr[1] * 60) + (+NowArr[2]);
+
+                let imsakArr = sonuc.imsakyarin.split(":");                 
+                let imsakSecs = (+imsakArr[0] * 3600) + (+imsakArr[1] * 60) + (+"00");                
+                
+                distance = (imsakSecs + (24 * 3600) - NowSecs)*1000; // miliseconds                                 
+            } else {
+                for (let i = 0; i < PrayerTimeArray.length; i++) {
+                    let prayerTime = new Date().setHours(PrayerTimeArray[i].split(":")[0], PrayerTimeArray[i].split(":")[1], "00");
+                    if (prayerTime > CurrentTime) {
+                        TargetTime = prayerTime;
+                        break;
+                    }
+                }
+                distance = TargetTime - CurrentTime;
+            }          
+            
+            let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            let minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            let seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            let total = (hours < 10 ? "0" + hours : hours) + ":" + (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
+
+            document.getElementById("prayer-times").innerHTML =
+                sonuc.hicri + "<br>" +
+                sonuc.tarih + "<br>" + Now + "<br>" + "<br>"+
+                "İMSAK: " +
+                sonuc.imsak +
+                "<br>" +
+                "ÖĞLE: " +
+                sonuc.ogle +
+                "<br>" +
+                "İKİNDİ: " +
+                sonuc.ikindi +
+                "<br>" +
+                "AKŞAM: " +
+                sonuc.aksam +
+                "<br>" +
+                "YATSI: " +
+                sonuc.yatsi +
+                "<br>" + "<br>"+
+                "SONRAKİ NAMAZA " + "<br>" + 
+                total +" VAR"
+        }
+
+        window.setInterval(function(){calculate();}, 1000);
+    </script>
+</head>
+<body onload="calculate()" style="background-color:black;">
+    <font size="6">
+        <table align="center" style="background-color:darkblue;">
+            <tr>
+                <td id="prayer-times" style="color:#FFFFFF; border:2px solid black;"></td>
+            </tr>
+        </table>
+    </font>
+</body>
+</html>
